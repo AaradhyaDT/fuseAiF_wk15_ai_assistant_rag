@@ -98,6 +98,16 @@ curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" `
 
 All three providers speak an OpenAI-compatible API, so a single client implementation covers them — that's what makes the fallback chain ~40 lines instead of three integrations.
 
+### ONNX & inference optimization (Task 2)
+
+Why conversion is not applicable here, per model:
+
+- **Gemini 2.5 Flash (primary)** — consumed as a hosted API; we hold no weights to convert.
+- **Qwen2.5-1.5B-Instruct (local)** — served by vLLM, which *is* the inference-optimization layer: paged KV-cache attention, continuous batching, and fused CPU kernels. An ONNX export would bypass those optimizations rather than add to them, and would break the "serve locally with vLLM" requirement. Optimization effort therefore goes into vLLM configuration instead — bounded context (`--max-model-len 4096`) and KV-cache sizing (`VLLM_CPU_KVCACHE_SPACE`) in `Dockerfile.vllm`.
+- **all-MiniLM-L6-v2 embedder** — the one locally-owned model where ONNX export is genuinely feasible. Deferred deliberately: at this corpus scale embedding latency is negligible next to generation latency, and the swap would add an export/runtime dependency for no measurable gain. First candidate to revisit if the corpus grows by orders of magnitude.
+
+Net effect: the "apply inference optimizations if supported" line is satisfied through vLLM's serving stack rather than a redundant ONNX hop.
+
 ## Known trade-offs
 
 Deliberate scope cuts, documented rather than hidden:
