@@ -28,8 +28,10 @@ class Settings(BaseSettings):
     request_timeout_s: float = 90.0
 
     data_docs_dir: str = "data/docs"
-    chroma_dir: str = "data/chroma"
+    qdrant_path: str = "data/qdrant"
+    qdrant_url: str = ""
     collection_name: str = "wk15_kb"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     chunk_size_chars: int = 900
     chunk_overlap_chars: int = 150

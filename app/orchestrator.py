@@ -65,7 +65,10 @@ class Orchestrator:
 
         context, sources = "", []
         if req.use_rag and self.retriever is not None:
-            context, sources = self.retriever.context_block(req.message)
+            try:
+                context, sources = self.retriever.context_block(req.message)
+            except Exception as exc:
+                logger.warning("retrieval failed, continuing without RAG context: %s", exc)
 
         messages = [
             {"role": "system", "content": build_system_prompt(context)},

@@ -14,7 +14,7 @@ flowchart LR
         ORCH["Orchestrator"]
         subgraph RAG
             RET["Retriever"]
-            VS[("ChromaDB<br/>persistent store")]
+            VS[("Qdrant<br/>embedded local or service")]
         end
         TL["Tool executor<br/>calculator · datetime · kb_search"]
     end
@@ -27,6 +27,7 @@ flowchart LR
     subgraph Serving["Local inference stack"]
         VLLM["vLLM server :8001<br/>weights baked into image"]
         OL["Ollama :11434"]
+        QR["Qdrant :6333<br/>(service mode in compose;<br/>embedded file mode in dev)"]
     end
     B -->|HTTP| UI["Streamlit UI :8501"]
     UI --> RL --> RT --> ORCH
@@ -38,6 +39,7 @@ flowchart LR
     P2 -.->|on failure| P3
     P2 --- VLLM
     P3 --- OL
+    RET --- QR
 ```
 
 ## Chat request sequence
@@ -81,11 +83,13 @@ sequenceDiagram
 | All providers down | Degraded response synthesized from retrieved passages | 200 with `degraded: true`, never a crash |
 | Malformed JSON from weak model | Fence-stripping + regex extraction before giving up | Raw text answer instead of error |
 | Request flood | Token bucket (60 rpm, burst 20 per IP) | 429 with Retry-After |
+| Vector store unreachable | Retrieval wrapped in try/except; chat continues without grounding context (logged) | 200 with no sources, answer from general knowledge |
 | Repeated identical question | TTL cache (300 s, 512 entries) | Instant response, `cached: true` |
 
 ## Performance notes
 
 - Endpoints are fully async; provider calls never block the event loop.
+- The embedding model loads lazily on first ingest/query and is pre-baked into the Docker image, so dev startup stays fast while containers stay network-free.
 - Cache keys hash message + flags + sampling params, so toggling RAG/tools misses deliberately.
 - Single uvicorn worker keeps the in-process cache/rate-limiter coherent; scale by running replicas behind a proxy (swap the in-memory pieces for Redis when you do).
 - The local model choice (1.5B, max_model_len 4096, KV-cache 4 GB) trades capability for demoable latency on CPU-only hardware.

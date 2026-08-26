@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .env
-data/chroma/
+data/qdrant/
 models/
 tests/
 docs/

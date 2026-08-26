@@ -7,7 +7,7 @@ This project is a production-style AI assistant built for the Fuse AI Fellowship
 - FastAPI backend exposing /chat, /ingest, /health, /tools.
 - Orchestrator implementing cache lookup, RAG grounding, a tool-calling loop, and JSON schema enforcement.
 - Provider chain: Gemini 2.5 Flash first, then a locally served Qwen2.5-1.5B-Instruct behind vLLM, then Ollama as final fallback.
-- ChromaDB vector store persisted under data/chroma, populated from markdown documents in data/docs.
+- Qdrant vector store fed by an explicit sentence-transformers embedder (all-MiniLM-L6-v2); embedded-local mode in dev, service mode under docker compose.
 - Streamlit chat UI talking to the backend over HTTP.
 
 ## Reliability features

@@ -27,7 +27,7 @@ def make_client(tmp_path, **overrides):
     settings = Settings(
         _env_file=None,
         gemini_api_key="",
-        chroma_dir=str(tmp_path / "chroma"),
+        qdrant_path=str(tmp_path / "qdrant"),
         data_docs_dir=str(tmp_path / "docs"),
         **overrides,
     )
@@ -77,7 +77,7 @@ def test_ingest_endpoint_indexes_documents(tmp_path):
         _env_file=None,
         gemini_api_key="",
         data_docs_dir=str(docs_dir),
-        chroma_dir=str(tmp_path / "db"),
+        qdrant_path=str(tmp_path / "db"),
     )
     app = create_app(settings, embedding_fn=BagOfWordsEmbedder())
     app.state.orchestrator.chain = [StubProvider()]

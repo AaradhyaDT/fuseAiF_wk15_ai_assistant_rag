@@ -9,6 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from .config import Settings, get_settings
 from .orchestrator import Orchestrator
 from .providers import build_providers
+from .rag.embeddings import SentenceTransformerEmbedder
 from .rag.ingest import ingest_documents
 from .rag.retriever import Retriever
 from .rag.store import VectorStore
@@ -42,7 +43,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 def create_app(settings: Settings | None = None, embedding_fn=None) -> FastAPI:
     settings = settings or get_settings()
-    store = VectorStore(settings.chroma_dir, settings.collection_name, embedding_fn=embedding_fn)
+    embedding_fn = embedding_fn or SentenceTransformerEmbedder(settings.embedding_model)
+    store = VectorStore(
+        settings.collection_name,
+        embedding_fn,
+        path=settings.qdrant_path,
+        url=settings.qdrant_url or None,
+    )
     retriever = Retriever(store, top_k=settings.top_k)
     orchestrator = Orchestrator(settings, build_providers(settings), retriever)
 

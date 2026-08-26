@@ -11,7 +11,7 @@ flowchart LR
     RL --> CACHE[(TTL cache)]
     CACHE --> ORCH[Orchestrator]
     ORCH --> RET[RAG retriever]
-    RET --> VS[(ChromaDB)]
+    RET --> VS[(Qdrant)]
     ORCH --> TL[Tools: calculator,<br/>datetime, kb_search]
     ORCH --> CH{Fallback chain}
     CH -->|"1 · retry + breaker"| G[Gemini 2.5 Flash]
@@ -26,7 +26,6 @@ Full diagram and failure-mode analysis: [docs/architecture.md](docs/architecture
 ### 1. Backend + UI (cloud-only, fastest path)
 
 ```powershell
-cd fuseAiF_wk15_ai_assistant_rag
 python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env   # then set GEMINI_API_KEY
@@ -43,9 +42,9 @@ Open <http://localhost:8501>.
 docker compose --profile local up --build
 ```
 
-- UI: <http://localhost:8501> · API: <http://localhost:8000/docs> · vLLM: <http://localhost:8001/v1>
-- The `vllm` image bakes the Qwen2.5-1.5B-Instruct weights at build time (`Dockerfile.vllm`), so the container runs offline-ready. First build downloads ~3 GB.
-- Without the `local` profile only `api` + `ui` start (Gemini/Ollama still reachable).
+- UI: <http://localhost:8501> · API: <http://localhost:8000/docs> · vLLM: <http://localhost:8001/v1> · Qdrant: <http://localhost:6333/dashboard>
+- The `vllm` image bakes the Qwen2.5-1.5B-Instruct weights at build time (`Dockerfile.vllm`), and the API image pre-downloads the MiniLM embedding model — both containers run offline-ready. First build downloads ~3 GB (vLLM weights) plus ~250 MB (CPU torch + embedder), which keeps runtime cold starts network-free.
+- Without the `local` profile only `api` + `ui` + `qdrant` start (Gemini/Ollama still reachable).
 
 ### 3. Ollama fallback (host)
 
@@ -60,7 +59,7 @@ The API reaches it at `http://localhost:11434/v1` natively, or `host.docker.inte
 | Method | Path       | Purpose                                        |
 |--------|------------|------------------------------------------------|
 | POST   | `/chat`    | `{message, use_rag, use_tools}` → structured `ChatResponse` |
-| POST   | `/ingest`  | Re-index `data/docs/` into ChromaDB            |
+| POST   | `/ingest`  | Re-index `data/docs/` into the Qdrant collection |
 | GET    | `/health`  | Uptime, indexed-doc count, per-provider breaker state |
 | GET    | `/tools`   | OpenAI-format tool specs                       |
 
@@ -78,7 +77,7 @@ curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" `
 | Structured output | JSON-schema `response_format` + Pydantic validation in `app/orchestrator.py` |
 | Tool calling | `app/tools/__init__.py` + tool loop in orchestrator |
 | RAG ingestion/chunking | `app/rag/ingest.py` (paragraph-aware, overlapping chunks) |
-| Embeddings + vector DB | ChromaDB persistent store, `app/rag/store.py` |
+| Embeddings + vector DB | Explicit sentence-transformers embedder (`app/rag/embeddings.py`) over Qdrant (`app/rag/store.py`) |
 | Local model via vLLM | `Dockerfile.vllm` (CPU wheel, baked Qwen weights) |
 | Containerization | `Dockerfile`, `docker-compose.yml` |
 | Web UI connected to backend | `ui/app.py` |
@@ -95,8 +94,18 @@ curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" `
 - **Gemini 2.5 Flash** — primary. The assignment grades pipeline engineering, not raw model quality; Flash keeps iteration fast and cheap.
 - **Qwen2.5-1.5B-Instruct via vLLM (CPU)** — satisfies "serve an open-source model locally with vLLM" without being undemoable on CPU-only hardware.
 - **Ollama qwen2.5:1.5b-instruct** — final fallback, already running Arc-accelerated on this machine.
+- **all-MiniLM-L6-v2 via sentence-transformers** — explicit, swappable embedder decoupled from any vector-DB default; runs CPU-friendly at 384 dims.
 
-All three speak an OpenAI-compatible API, so a single client implementation covers them — that's what makes the fallback chain ~40 lines instead of three integrations.
+All three providers speak an OpenAI-compatible API, so a single client implementation covers them — that's what makes the fallback chain ~40 lines instead of three integrations.
+
+## Known trade-offs
+
+Deliberate scope cuts, documented rather than hidden:
+
+- Chunking is char-based (~900 chars, 150 overlap), not token-aware — a tiktoken/sentence-aware splitter is a contained upgrade to `chunk_text`.
+- `POST /ingest` rebuilds the whole collection instead of incremental upserts — correct and simple for this corpus size.
+- No re-ranking or hybrid search; single-shot dense retrieval only.
+- Cache and rate limiter are in-process; run one worker per replica or swap for Redis when scaling horizontally.
 
 ## Tests
 
@@ -110,7 +119,7 @@ Covers chunking, retrieval ranking, cache TTL/LRU, retry/backoff, circuit breake
 
 ## Configuration
 
-All settings are env-driven (see `.env.example`): provider order, models, timeouts, retry/breaker thresholds, rate limits, cache size, chunk size/overlap, top_k.
+All settings are env-driven (see `.env.example`): provider order, models, timeouts, retry/breaker thresholds, rate limits, cache size, chunk size/overlap, top_k, embedding model, and Qdrant mode (`QDRANT_URL` empty = embedded-local file store; set = server mode).
 
 ## Deployment notes (bonus)
 

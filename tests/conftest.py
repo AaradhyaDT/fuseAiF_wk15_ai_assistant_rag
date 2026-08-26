@@ -2,7 +2,6 @@ import hashlib
 import math
 
 import pytest
-from chromadb import EmbeddingFunction
 
 from app.config import Settings
 from app.rag.retriever import Retriever
@@ -22,11 +21,10 @@ def _token_vec(token: str) -> list[float]:
     return [x / norm for x in vec]
 
 
-class BagOfWordsEmbedder(EmbeddingFunction):
+class BagOfWordsEmbedder:
     """Deterministic offline embedder: hashed bag-of-words, unit-normalized."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    dim = DIM
 
     def __call__(self, input):
         outputs = []
@@ -39,16 +37,6 @@ class BagOfWordsEmbedder(EmbeddingFunction):
             outputs.append([x / norm for x in acc])
         return outputs
 
-    def name(self) -> str:
-        return "bag_of_words_test"
-
-    def get_config(self) -> dict:
-        return {}
-
-    @classmethod
-    def build_from_config(cls, config: dict):
-        return cls()
-
 
 @pytest.fixture
 def settings(tmp_path):
@@ -56,13 +44,13 @@ def settings(tmp_path):
         _env_file=None,
         gemini_api_key="",
         data_docs_dir=str(tmp_path / "docs"),
-        chroma_dir=str(tmp_path / "chroma"),
+        qdrant_path=str(tmp_path / "qdrant"),
     )
 
 
 @pytest.fixture
 def store(tmp_path):
-    return VectorStore(tmp_path / "chroma", "test_kb", embedding_fn=BagOfWordsEmbedder())
+    return VectorStore("test_kb", BagOfWordsEmbedder(), path=tmp_path / "qdrant")
 
 
 @pytest.fixture
