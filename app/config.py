@@ -1,0 +1,52 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    app_name: str = "wk15-assistant"
+
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+    vllm_base_url: str = "http://localhost:8001/v1"
+    vllm_model: str = "qwen2.5-1.5b-instruct"
+    vllm_api_key: str = "EMPTY"
+
+    ollama_base_url: str = "http://localhost:11434/v1"
+    ollama_model: str = "qwen2.5:1.5b-instruct"
+    ollama_api_key: str = "ollama"
+
+    provider_order: str = "gemini,vllm,ollama"
+
+    temperature: float = 0.2
+    top_p: float = 0.9
+    max_output_tokens: int = 1024
+    request_timeout_s: float = 90.0
+
+    data_docs_dir: str = "data/docs"
+    chroma_dir: str = "data/chroma"
+    collection_name: str = "wk15_kb"
+
+    chunk_size_chars: int = 900
+    chunk_overlap_chars: int = 150
+    top_k: int = 4
+
+    retry_attempts: int = 3
+    retry_backoff_s: float = 0.5
+    breaker_failure_threshold: int = 3
+    breaker_reset_timeout_s: float = 30.0
+
+    rate_limit_rpm: int = 60
+    rate_limit_burst: int = 20
+
+    cache_ttl_s: int = 300
+    cache_max_items: int = 512
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

@@ -1,3 +1,4 @@
+.git/
 .venv/
 __pycache__/
 *.pyc
@@ -5,3 +6,8 @@ __pycache__/
 .env
 data/chroma/
 models/
+tests/
+docs/
+README.md
+Dockerfile.vllm
+docker-compose.yml

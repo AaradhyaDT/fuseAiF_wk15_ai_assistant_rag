@@ -1,0 +1,44 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      VLLM_BASE_URL: http://vllm:8000/v1
+      OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/srv/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  ui:
+    build: .
+    command: streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
+    ports:
+      - "8501:8501"
+    environment:
+      BACKEND_URL: http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  vllm:
+    build:
+      context: .
+      dockerfile: Dockerfile.vllm
+    profiles: ["local"]
+    ports:
+      - "8001:8000"
+    environment:
+      VLLM_CPU_KVCACHE_SPACE: "4"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 300s
+    restart: unless-stopped

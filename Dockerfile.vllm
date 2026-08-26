@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HUB_DISABLE_PROGRESS_BARS=1
+
+RUN pip install vllm-cpu huggingface_hub
+
+RUN huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct \
+      --local-dir /models/qwen2.5-1.5b-instruct
+
+ENV HF_HUB_OFFLINE=1 \
+    VLLM_CPU_KVCACHE_SPACE=4
+
+EXPOSE 8000
+
+ENTRYPOINT ["vllm", "serve", "/models/qwen2.5-1.5b-instruct"]
+CMD ["--device", "cpu", "--served-model-name", "qwen2.5-1.5b-instruct", "--max-model-len", "4096", "--host", "0.0.0.0", "--port", "8000"]
