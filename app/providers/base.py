@@ -46,7 +46,7 @@ class LLMProvider:
             "top_p": top_p,
             "max_tokens": max_tokens,
         }
-        if json_schema is not None:
+        if json_schema is not None and not tools:
             kwargs["response_format"] = {
                 "type": "json_schema",
                 "json_schema": {

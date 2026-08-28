@@ -89,7 +89,7 @@ def test_ingest_endpoint_indexes_documents(tmp_path):
     assert health["documents_indexed"] == stats["chunks"]
 
 
-def test_chat_degrades_gracefully_when_all_providers_down():
+def test_chat_degrades_gracefully_when_all_providers_down(tmp_path):
     class BrokenProvider:
         name = "broken"
 
@@ -99,7 +99,7 @@ def test_chat_degrades_gracefully_when_all_providers_down():
         async def complete(self, messages, **kwargs):
             raise RuntimeError("outage")
 
-    settings = Settings(_env_file=None, gemini_api_key="", retry_attempts=1, retry_backoff_s=0.001)
+    settings = Settings(_env_file=None, gemini_api_key="", retry_attempts=1, retry_backoff_s=0.001, qdrant_path=str(tmp_path / "qdrant"))
     app = create_app(settings, embedding_fn=BagOfWordsEmbedder())
     app.state.orchestrator.chain = [BrokenProvider()]
     client = TestClient(app)
