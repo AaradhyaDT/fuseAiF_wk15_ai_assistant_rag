@@ -1,5 +1,5 @@
 # ==============================================================================
-# WK15 AI Assistant — One-Click Startup Script
+# WK15 AI Assistant - One-Click Startup Script
 # Starts FastAPI Backend on port 8000 and Streamlit UI on port 8501
 # ==============================================================================
 
@@ -8,7 +8,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $ScriptDir
 
 Write-Host "=====================================================" -ForegroundColor Cyan
-Write-Host " 🚀 Starting WK15 AI Assistant Stack" -ForegroundColor Cyan
+Write-Host " [*] Starting WK15 AI Assistant Stack" -ForegroundColor Cyan
 Write-Host "=====================================================" -ForegroundColor Cyan
 
 # 0. Terminate any existing running instances
@@ -77,9 +77,9 @@ Write-Host "[*] Starting Web UI (Streamlit) on http://localhost:8501..." -Foregr
 $FrontendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1" -WorkingDirectory $ScriptDir -PassThru
 
 Write-Host "`n=====================================================" -ForegroundColor Green
-Write-Host " ✨ Assistant is running!" -ForegroundColor Green
-Write-Host " 🌐 Web UI:      http://localhost:8501" -ForegroundColor Cyan
-Write-Host " 📖 API Docs:    http://localhost:8000/docs" -ForegroundColor Cyan
+Write-Host " [+] Assistant is running!" -ForegroundColor Green
+Write-Host " [>] Web UI:      http://localhost:8501" -ForegroundColor Cyan
+Write-Host " [>] API Docs:    http://localhost:8000/docs" -ForegroundColor Cyan
 Write-Host "=====================================================" -ForegroundColor Green
 Write-Host "`nPress Ctrl+C or close this window to stop both servers.`n" -ForegroundColor Gray
 
@@ -100,5 +100,5 @@ finally {
     if ($FrontendProcess -and (-not $FrontendProcess.HasExited)) {
         Stop-Process -Id $FrontendProcess.Id -Force -ErrorAction SilentlyContinue
     }
-    Write-Host "[✓] All servers stopped." -ForegroundColor Green
+    Write-Host "[*] All servers stopped." -ForegroundColor Green
 }
