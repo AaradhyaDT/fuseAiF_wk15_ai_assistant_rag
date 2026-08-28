@@ -74,7 +74,7 @@ Start-Sleep -Seconds 3
 
 # 4. Start Streamlit Frontend
 Write-Host "[*] Starting Web UI (Streamlit) on http://localhost:8501..." -ForegroundColor Green
-$FrontendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1" -WorkingDirectory $ScriptDir -PassThru
+$FrontendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1 --server.headless true --browser.gatherUsageStats false" -WorkingDirectory $ScriptDir -PassThru
 
 Write-Host "`n=====================================================" -ForegroundColor Green
 Write-Host " [+] Assistant is running!" -ForegroundColor Green
