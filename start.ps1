@@ -11,6 +11,41 @@ Write-Host "=====================================================" -ForegroundCo
 Write-Host " 🚀 Starting WK15 AI Assistant Stack" -ForegroundColor Cyan
 Write-Host "=====================================================" -ForegroundColor Cyan
 
+# 0. Terminate any existing running instances
+Write-Host "[*] Checking for and closing existing instances..." -ForegroundColor Yellow
+
+# Kill by ports (8000 and 8501)
+$TargetPorts = @(8000, 8501)
+foreach ($Port in $TargetPorts) {
+    try {
+        $Conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+        if ($Conns) {
+            $Pids = $Conns | Select-Object -ExpandProperty OwningProcess -Unique
+            foreach ($P in $Pids) {
+                if ($P -gt 0 -and $P -ne $PID) {
+                    Write-Host "    - Stopping process on port $Port (PID: $P)..." -ForegroundColor Yellow
+                    Stop-Process -Id $P -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
+    } catch { }
+}
+
+# Kill by command line signature (uvicorn / streamlit for this project)
+try {
+    $Lingering = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        ($_.CommandLine -like "*uvicorn app.main:create_app*" -or $_.CommandLine -like "*streamlit run ui/app.py*") -and $_.ProcessId -ne $PID
+    }
+    if ($Lingering) {
+        foreach ($Proc in $Lingering) {
+            Write-Host "    - Stopping matching process '$($Proc.Name)' (PID: $($Proc.ProcessId))..." -ForegroundColor Yellow
+            Stop-Process -Id $Proc.ProcessId -Force -ErrorAction SilentlyContinue
+        }
+    }
+} catch { }
+
+Start-Sleep -Seconds 1
+
 # 1. Check/activate Virtual Environment
 $PythonExe = Join-Path $ScriptDir ".venv\Scripts\python.exe"
 if (-not (Test-Path $PythonExe)) {
