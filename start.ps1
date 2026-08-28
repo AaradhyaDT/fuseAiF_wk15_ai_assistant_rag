@@ -28,7 +28,9 @@ foreach ($Port in $TargetPorts) {
                 }
             }
         }
-    } catch { }
+    } catch {
+        # ignore port query errors
+    }
 }
 
 # Kill by command line signature (uvicorn / streamlit for this project)
@@ -42,7 +44,9 @@ try {
             Stop-Process -Id $Proc.ProcessId -Force -ErrorAction SilentlyContinue
         }
     }
-} catch { }
+} catch {
+    # ignore process query errors
+}
 
 Start-Sleep -Seconds 1
 
@@ -56,27 +60,21 @@ if (-not (Test-Path $PythonExe)) {
 # 2. Check for .env file
 $EnvFile = Join-Path $ScriptDir ".env"
 $EnvExample = Join-Path $ScriptDir ".env.example"
-if (-not (Test-Path $EnvFile) -and (Test-Path $EnvExample)) {
+if ((-not (Test-Path $EnvFile)) -and (Test-Path $EnvExample)) {
     Write-Host "[*] Creating .env from .env.example..." -ForegroundColor Yellow
     Copy-Item $EnvExample $EnvFile
 }
 
 # 3. Start Backend API Server
 Write-Host "`n[*] Starting Backend API (FastAPI) on http://localhost:8000..." -ForegroundColor Green
-$BackendProcess = Start-Process -FilePath $PythonExe `
-    -ArgumentList "-m uvicorn app.main:create_app --factory --port 8000 --host 127.0.0.1" `
-    -WorkingDirectory $ScriptDir `
-    -PassThru
+$BackendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m uvicorn app.main:create_app --factory --port 8000 --host 127.0.0.1" -WorkingDirectory $ScriptDir -PassThru
 
 # Wait briefly for backend to initialize
 Start-Sleep -Seconds 3
 
 # 4. Start Streamlit Frontend
 Write-Host "[*] Starting Web UI (Streamlit) on http://localhost:8501..." -ForegroundColor Green
-$FrontendProcess = Start-Process -FilePath $PythonExe `
-    -ArgumentList "-m streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1" `
-    -WorkingDirectory $ScriptDir `
-    -PassThru
+$FrontendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m streamlit run ui/app.py --server.port 8501 --server.address 127.0.0.1" -WorkingDirectory $ScriptDir -PassThru
 
 Write-Host "`n=====================================================" -ForegroundColor Green
 Write-Host " ✨ Assistant is running!" -ForegroundColor Green
@@ -90,16 +88,16 @@ Start-Process "http://localhost:8501"
 
 try {
     # Keep the script running to monitor processes and handle graceful shutdown
-    while ($BackendProcess -and -not $BackendProcess.HasExited -and $FrontendProcess -and -not $FrontendProcess.HasExited) {
+    while ($BackendProcess -and (-not $BackendProcess.HasExited) -and $FrontendProcess -and (-not $FrontendProcess.HasExited)) {
         Start-Sleep -Seconds 1
     }
 }
 finally {
     Write-Host "`n[*] Shutting down servers..." -ForegroundColor Yellow
-    if ($BackendProcess -and -not $BackendProcess.HasExited) {
+    if ($BackendProcess -and (-not $BackendProcess.HasExited)) {
         Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue
     }
-    if ($FrontendProcess -and -not $FrontendProcess.HasExited) {
+    if ($FrontendProcess -and (-not $FrontendProcess.HasExited)) {
         Stop-Process -Id $FrontendProcess.Id -Force -ErrorAction SilentlyContinue
     }
     Write-Host "[✓] All servers stopped." -ForegroundColor Green
